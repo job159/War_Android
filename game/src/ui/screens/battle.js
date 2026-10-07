@@ -5,7 +5,8 @@ import { register, replace, modal, back, pushBack } from '../app.js';
 import { h, esc, sleep } from '../dom.js';
 import { icon } from '../../art/icons.js';
 import { heroImage, heroImageURL } from '../../art/hero.js';
-import { monsterImage } from '../../art/monster.js';
+import { monsterImage, monsterImageURL } from '../../art/monster.js';
+import { heroAsset, monsterAsset, heroBattleArt, monsterMeta } from '../../art/assets.js';
 import { HERO_MAP } from '../../core/data/heroes.js';
 import { ENEMIES } from '../../core/data/enemies.js';
 import { Battle, ENERGY_MAX, CUTIN_TIME } from '../../core/battle/sim.js';
@@ -15,6 +16,7 @@ import { S, changed, addCur, markStudyDay } from '../../core/state.js';
 import { track } from '../../core/missions.js';
 import { goldPerAnswer } from '../../core/economy.js';
 import { BattleView } from '../../fx/battleView.js';
+import { BattleStage } from '../../gfx/stage.js';
 import { playCutin } from '../cutin.js';
 import { speak, sfx, music, intensity, stinger, stopSpeak } from '../sound.js';
 import { setBgPaused } from '../../fx/bg.js';
@@ -54,11 +56,11 @@ register({
   <div class="bt-stage"><small>${esc(setup.subtitle || '')}</small><b>${esc(setup.title || '')}</b></div>
   <div class="bt-gold">${icon('coin')}<b>0</b></div>
   <div class="bt-time">1:30</div>
-  <button class="bt-auto ${settings.autoUlt ? 'on' : ''}" data-a="auto">${icon('auto')}<span>AUTO</span></button>
+  <button class="bt-auto ${settings.autoUlt ? 'on' : ''}" data-a="auto">${icon('auto')}<span>自動</span></button>
 </div>
 <div class="bt-field"><canvas></canvas>
-  <div class="bt-combo"><b>0</b><small>COMBO</small></div>
-  <div class="bt-fever">FEVER!</div>
+  <div class="bt-combo"><b>0</b><small>連擊</small></div>
+  <div class="bt-fever">狂熱</div>
   <div class="bt-banner"></div>
   <div class="bt-opp"></div>
 </div>
@@ -82,7 +84,13 @@ register({
     const feverEl = $('.bt-fever');
     const qLabel = $('.q-label'), qPrompt = $('.q-prompt'), qOpts = $('.q-opts'), qFb = $('.q-fb'), qSpeed = $('.q-speed i'), qN = $('.q-n');
 
-    const view = new BattleView(canvas, { bg: setup.bg || 'plains', quality: settings.fx });
+    // WebGL stage when available (bloom, distortion, camera work); the Canvas2D renderer is the fallback
+    let view = null;
+    const viewReady = BattleStage.create(canvas, { bg: setup.bg || 'plains', quality: settings.fx }).then((v) => {
+      view = v || new BattleView(canvas, { bg: setup.bg || 'plains', quality: settings.fx });
+      view.onCue = (id, q) => { if (q.type === 'swing') sfx('slash'); };
+      return view;
+    });
 
     // ---------------------------------------------------------------- setup engine + sprites
     if (!engine) {
@@ -99,7 +107,11 @@ register({
     const viewSide = (simSide) => (simSide === mySide ? 0 : 1);
     const myUnits = () => engine.units.filter((u) => u.side === mySide);
 
+    const loadImage = (url) => new Promise((res) => { const im = new Image(); im.decoding = 'async'; im.onload = () => res(im); im.onerror = () => res(null); im.src = url; });
+
     async function loadSprites() {
+      await viewReady;
+      if (destroyed) return;
       const jobs = [];
       for (const u of engine.units) {
         const vs = viewSide(u.side);
@@ -108,13 +120,27 @@ register({
           const def = HERO_MAP[u.key];
           const skin = u.spec && u.spec.skin;
           info.flip = vs === 1;
-          jobs.push(Promise.all([heroImage(def, { skin }), heroImage(def, { skin, expr: 'hurt' }), heroImage(def, { skin, expr: 'angry' })]).then(([a, b, c]) => { info.imgs = { normal: a, hurt: b, attack: c }; }));
+          info.role = def.role;
+          const art = heroBattleArt(def.id, skin);
+          if (art) {
+            // painted chibi + key poses (attack / ultimate cast / hurt) for the puppet animation
+            const keys = Object.keys(art.urls);
+            jobs.push(Promise.all(keys.map((k) => loadImage(art.urls[k]))).then((imgs) => {
+              const I = { raster: true, meta: art.meta };
+              keys.forEach((k, i) => { if (imgs[i]) I[k] = imgs[i]; });
+              info.imgs = I;
+            }));
+          } else {
+            jobs.push(Promise.all([heroImage(def, { skin, battle: true }), heroImage(def, { skin, expr: 'hurt', battle: true }), heroImage(def, { skin, expr: 'angry', battle: true })]).then(([a, b, c]) => { info.imgs = { idle: a, hurt: b, atk: c, cast: c, raster: false }; }));
+          }
         } else {
           const def = ENEMIES[u.key];
           info.monster = def.kind !== 'queen';
+          info.kind = def.kind;
           info.flip = vs === 0;
           const crown = !!def.crown;
-          jobs.push(Promise.all([monsterImage(def.kind, u.element, { crown }), monsterImage(def.kind, u.element, { crown, expr: 'hurt' })]).then(([a, b]) => { info.imgs = { normal: a, hurt: b, attack: a }; }));
+          const raster = !!monsterAsset(u.key, u.element);
+          jobs.push(Promise.all([monsterImage(def.kind, u.element, { crown, id: u.key }), raster ? null : monsterImage(def.kind, u.element, { crown, expr: 'hurt', id: u.key })]).then(([a, b]) => { info.imgs = raster ? { idle: a, raster, meta: { idle: monsterMeta(u.key, u.element) } } : { idle: a, hurt: b, raster }; }));
         }
         view.addUnit(info);
         jobs[jobs.length - 1].then(() => { const vu = view.unit(u.id); if (vu) vu.imgs = info.imgs; });
@@ -141,6 +167,17 @@ register({
         c.classList.toggle('low', u.alive && u.hp / u.maxHp < 0.3);
       }
     };
+    canvas.addEventListener('pointerdown', (e) => {
+      if (!view || !view.pick || paused || ended) return;
+      const r = canvas.getBoundingClientRect();
+      const id = view.pick(e.clientX - r.left, e.clientY - r.top);
+      if (!id) return;
+      const u = engine.unit(id);
+      if (u && u.side === mySide && u.alive && engine.ultReady(u)) {
+        if (engine.input(mySide, { type: 'ult', unit: id })) { sfx('ultReady'); return; }
+      }
+      if (view.poke(id)) sfx(u && u.side === mySide ? 'heart' : 'tap');
+    });
     cardsEl.addEventListener('pointerdown', (e) => {
       const c = e.target.closest('.bc');
       if (!c || paused || ended) return;
@@ -198,7 +235,7 @@ register({
         const g = Math.round(goldPerAnswer(setup.level || 1) * (setup.goldMult ?? 1) * (tier === 'perfect' ? 1.5 : 1));
         if (setup.goldMult !== 0) { gold += g; addCur('gold', g); flyCoins(btn, g); }
         el.querySelector('.bt-quiz').classList.add('right');
-        qFb.innerHTML = `<span class="tier ${tier}">${tier === 'perfect' ? 'PERFECT!' : tier === 'great' ? 'GREAT!' : 'GOOD'}</span>`;
+        qFb.innerHTML = `<span class="tier ${tier}">${tier === 'perfect' ? '完美' : tier === 'great' ? '很好' : '不錯'}</span>`;
         sfx(tier === 'perfect' ? 'perfect' : 'correct');
         flyEnergy(btn);
         if (q.speakOnReveal && settings.tts && q.type !== 'gram' && q.type !== 'passage') speak(q.speak);
@@ -210,7 +247,7 @@ register({
         sfx('wrong');
         vib(60);
         qFb.className = 'q-fb show';
-        qFb.innerHTML = `<div class="fb-ans">✔ ${esc(q.options[q.answer])}</div>${q.explain ? `<div class="fb-ex">${esc(q.explain)}</div>` : ''}`;
+        qFb.innerHTML = `<div class="fb-ans">${icon('check')} ${esc(q.options[q.answer])}</div>${q.explain ? `<div class="fb-ex">${esc(q.explain)}</div>` : ''}`;
         if (q.speak && settings.tts) speak(q.speak);
         nextQTimer = setTimeout(showQuestion, 1900);
       }
@@ -266,7 +303,7 @@ register({
               S.d.stats.ults = (S.d.stats.ults || 0) + (enemy ? 0 : 1);
             } else {
               const def = ENEMIES[u.key];
-              playCutin(field, { monster: { kind: def.kind, element: u.element }, element: u.element, name: e.name, en: def.en, enemy: true, dur: CUTIN_TIME });
+              playCutin(field, { monster: { kind: def.kind, element: u.element, id: u.key }, element: u.element, name: e.name, en: def.en, enemy: true, dur: CUTIN_TIME });
             }
             sfx(enemy ? 'enemyUlt' : 'ult');
             vib(40);
@@ -274,21 +311,21 @@ register({
           }
           case 'ultFire': sfx('ultHit'); break;
           case 'dmg': if (!e.dot) sfx(e.crit ? 'crit' : 'hit', { pan: 0 }); break;
-          case 'act': if (e.a === 'skill') sfx('skill'); else sfx(e.melee ? 'slash' : 'shoot'); break;
+          case 'act': if (e.a === 'skill') sfx('skill'); else if (!e.melee) sfx('shoot'); break;
           case 'heal': if (!e.regen) sfx('heal'); break;
           case 'death': sfx('death'); break;
           case 'answer':
             if (e.side === mySide) {
-              if (e.ok && e.fever) { banner('FEVER TIME!', 'fever'); sfx('fever'); vib(30); }
-              if (!e.ok && e.broke >= 5) banner(`COMBO 中斷`, 'bad');
+              if (e.ok && e.fever) { banner('狂熱時間', 'fever'); sfx('fever'); vib(30); }
+              if (!e.ok && e.broke >= 5) banner('連擊中斷', 'bad');
             }
             break;
           case 'charge': {
             const u = engine.unit(e.u);
-            if (u && u.side !== mySide) { banner(`⚠ ${e.name}！連續答對 ${e.need} 題打斷它！`, 'warn', 2.6); sfx('alarm'); music('boss'); }
+            if (u && u.side !== mySide) { banner(`${e.name}！連續答對 ${e.need} 題打斷它！`, 'warn', 2.6); sfx('alarm'); music('boss'); }
             break;
           }
-          case 'break': banner('BREAK!! 首領暈眩', 'break'); sfx('break'); vib(80); break;
+          case 'break': banner('破防！首領暈眩', 'break'); sfx('break'); vib(80); break;
           case 'chargeBlast': sfx('bossBlast'); vib(120); break;
           case 'sudden': banner('SUDDEN DEATH　傷害 ×1.5', 'warn'); break;
           case 'end': onEnd(e); break;
@@ -306,6 +343,29 @@ register({
       bannerTimer = setTimeout(() => { b.className = 'bt-banner'; }, secs * 1000);
     };
     const vib = (ms) => { if (settings.vib) try { window.NativeBridge && window.NativeBridge.vibrate(ms); } catch { /* ignore */ } };
+
+    // ---------------------------------------------------------------- enemy gauge (top of the field)
+    const oppEl = $('.bt-opp');
+    const bossUnit = engine.units.find((u) => u.boss && u.side !== mySide);
+    {
+      const bdef = bossUnit && ENEMIES[bossUnit.key];
+      const name = bdef ? bdef.zh : setup.oppName && setup.simMode === 'pvp' ? setup.oppName : '敵方';
+      oppEl.innerHTML = `<div class="op-name">${bdef ? '<i>首領</i>' : ''}${esc(name)}</div><div class="op-bar"><i class="op-trail"></i><i class="op-hp"></i></div>`;
+      oppEl.classList.toggle('boss', !!bdef);
+      field.classList.toggle('has-boss', !!bdef);
+    }
+    const opHp = oppEl.querySelector('.op-hp'), opTrail = oppEl.querySelector('.op-trail');
+    let opLast = -1;
+    const updateOpp = () => {
+      const foes = bossUnit ? [bossUnit] : engine.units.filter((u) => u.side !== mySide);
+      const max = foes.reduce((a, u) => a + u.maxHp, 0) || 1;
+      const now = foes.reduce((a, u) => a + (u.alive ? Math.max(0, u.hp) : 0), 0);
+      const pct = Math.round((now / max) * 1000) / 10;
+      if (pct === opLast) return;
+      opLast = pct;
+      opHp.style.width = pct + '%';
+      opTrail.style.width = pct + '%';
+    };
 
     // ---------------------------------------------------------------- loop
     const hudTick = () => {
@@ -329,6 +389,7 @@ register({
         qSpeed.style.width = (1 - k) * 100 + '%';
         qSpeed.className = s < q.par * 0.45 ? 'perfect' : s < q.par ? 'great' : 'good';
       }
+      updateOpp();
       const foeAlive = engine.units.filter((u) => u.side !== mySide && u.alive);
       const total = engine.units.filter((u) => u.side !== mySide).reduce((a, u) => a + u.maxHp, 0);
       const now = foeAlive.reduce((a, u) => a + Math.max(0, u.hp), 0);
@@ -336,6 +397,7 @@ register({
       updateCards();
     };
 
+    let holdUntil = 0;
     const frame = (ts) => {
       if (destroyed) return;
       cancelAnimationFrame(raf);
@@ -344,7 +406,7 @@ register({
       last = ts;
       lastFrameAt = performance.now();
       if (!paused) {
-        acc += dt;
+        if (performance.now() >= holdUntil) acc += dt;
         let n = 0;
         while (acc >= STEP && n < 8) {
           engine.step(STEP);
@@ -373,8 +435,9 @@ register({
       stopSpeak();
       const win = setup.raid ? true : e.winner === mySide;
       const draw = e.winner === -1;
+      if (view && view.finale) view.finale(draw ? -1 : viewSide(e.winner));
       await sleep(500);
-      const ov = h(`<div class="bt-result ${win ? 'win' : draw ? 'draw' : 'lose'}"><div class="br-rays"></div><div class="br-text">${win ? 'VICTORY' : draw ? 'DRAW' : 'DEFEAT'}</div><div class="br-sub">${win ? '勝利' : draw ? '平手' : '敗北'}</div></div>`);
+      const ov = h(`<div class="bt-result ${win ? 'win' : draw ? 'draw' : 'lose'}"><div class="br-rays"></div><div class="br-text">${win ? '勝利' : draw ? '平手' : '敗北'}</div></div>`);
       overlay.appendChild(ov);
       stinger(win ? 'victory' : 'defeat');
       sfx(win ? 'victory' : 'defeat');
@@ -446,8 +509,20 @@ register({
       }
       view.resize();
       music(setup.music || 'battle');
-      banner(setup.startText || 'BATTLE START', 'start', 1.4);
+      // boss entrance: warning stripes + the boss painting before the fight starts
+      const bossU = !setup.online && engine.units.find((u) => u.boss && u.side !== mySide);
+      if (bossU) {
+        view.update(0);
+        view.draw([false, false]);
+        const def = ENEMIES[bossU.key];
+        sfx('alarm');
+        await bossIntro(overlay, { art: monsterImageURL(def.kind, bossU.element, { id: bossU.key, crown: !!def.crown }), name: def.zh, en: def.en || '', element: bossU.element });
+        if (destroyed) return;
+      }
+      banner(setup.startText || '戰鬥開始', 'start', 1.4);
       sfx('battleStart');
+      // the teams run onto the field before the clock starts
+      if (view.entrance && !setup.online) { view.entrance(); holdUntil = performance.now() + 620; }
       last = performance.now();
       lastFrameAt = last;
       raf = requestAnimationFrame(frame);
@@ -459,12 +534,17 @@ register({
     if (__DEV__) {
       window.__lxBattle = {
         engine: () => engine,
+        view: () => view,
         answer: (ok = true) => { if (!q || qLocked) return false; const i = ok ? q.answer : (q.answer + 1) % q.options.length; answer(i, qOpts.children[i]); return true; },
         ult: (k = 0) => engine.input(mySide, { type: 'ult', unit: myUnits()[k].id }),
+        cutin: (k = 0, dur = 8) => { const u = myUnits()[k]; const def = HERO_MAP[u.key]; return playCutin(field, { hero: def, skin: u.spec && u.spec.skin, element: u.element, name: def.ult.zh || def.ult.name, en: def.ult.en, dur }); },
       };
     }
-    const onResize = () => view.resize();
+    const onResize = () => view && view.resize();
     window.addEventListener('resize', onResize);
+    // the field's height follows the quiz panel: keep the renderer matched to the canvas box (no stretching)
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(onResize) : null;
+    if (ro) ro.observe(canvas);
 
     return {
       back() { openPause(); return true; },
@@ -475,6 +555,8 @@ register({
         clearTimeout(nextQTimer);
         clearTimeout(bannerTimer);
         window.removeEventListener('resize', onResize);
+        if (ro) ro.disconnect();
+        if (view && view.destroy) view.destroy();
         stopSpeak();
         setBgPaused(false);
         music('menu');
@@ -485,14 +567,29 @@ register({
   },
 });
 
-/** First battle: how answering, ultimates, FEVER and BREAK work. Resolves when dismissed. */
+/** Boss entrance (about 1.8 s): red warning bands, the boss slides in huge, its name slams down. */
+function bossIntro(host, { art, name, en, element }) {
+  return new Promise((resolve) => {
+    const el = h(`<div class="boss-in el-${element}"><div class="bi-dim"></div><div class="bi-band top"><span>警告　強敵來襲　警告　強敵來襲　警告　強敵來襲</span></div>
+<img class="bi-art" src="${art}" alt=""><div class="bi-name"><small class="en-title">${esc(en)}</small><b>${esc(name)}</b></div>
+<div class="bi-band bot"><span>首領戰　首領戰　首領戰　首領戰　首領戰　首領戰</span></div></div>`);
+    host.appendChild(el);
+    let done = false;
+    const finish = () => { if (done) return; done = true; popBack(); el.classList.add('out'); setTimeout(() => { el.remove(); resolve(); }, 260); };
+    const popBack = pushBack(finish);
+    el.addEventListener('pointerdown', finish);
+    setTimeout(finish, 1900);
+  });
+}
+
+/** First battle: how answering, ultimates, fever and break work. Resolves when dismissed. */
 function tutorial(host) {
   return new Promise((resolve) => {
     const tips = [
-      ['bolt', '答題＝充能', '答對題目，全隊獲得能量。答得越快（PERFECT／GREAT）能量越多，還會掉金幣！'],
-      ['star', '施放奧義', '角色卡發光並顯示「奧義」時點擊它！右上角 AUTO 可以自動施放。'],
-      ['swords', '連擊與 FEVER', '連續答對 5 題進入 FEVER：傷害 +25%、充能 ×1.5。答錯會中斷連擊並短暫暈眩，正解會立刻告訴你。'],
-      ['dragon', '打斷首領', '首領蓄力大招時，限時內連續答對指定題數就能 BREAK，讓它暈眩又破防！'],
+      ['bolt', '答題＝充能', '答對題目，全隊獲得能量。答得越快（「完美」「很好」）能量越多，還會掉金幣！'],
+      ['star', '施放奧義', '角色卡發光並顯示「奧義」時點擊它，或直接點戰場上的角色！右上角「自動」可以自動施放。'],
+      ['swords', '連擊與狂熱', '連續答對 5 題進入「狂熱」：傷害 +25%、充能 ×1.5。答錯會中斷連擊並短暫暈眩，正解會立刻告訴你。'],
+      ['dragon', '打斷首領', '首領蓄力大招時，限時內連續答對指定題數就能打斷它，讓它暈眩又破防！'],
     ];
     const el = h(`<div class="tut"><div class="tut-box panel ornate"><div class="tut-title">戰鬥教學</div>${tips.map(([ic, t, d]) => `<div class="tut-row"><span class="tut-ic">${icon(ic)}</span><div><b>${t}</b><p>${d}</p></div></div>`).join('')}<button class="btn primary big block">開始戰鬥！</button></div></div>`);
     const close = () => { popBack(); el.remove(); resolve(); };

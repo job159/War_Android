@@ -36,6 +36,15 @@ try {
 } catch {
   // no bundled fonts
 }
+// painted art (art/post.py output); the game falls back to procedural art for anything missing
+let artBytes = 0;
+try {
+  await fs.cp(path.join(src, 'assets'), path.join(out, 'assets'), { recursive: true });
+  const walk = async (d) => { for (const e of await fs.readdir(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) await walk(p); else artBytes += (await fs.stat(p)).size; } };
+  await walk(path.join(out, 'assets'));
+} catch {
+  // no painted assets yet
+}
 
 const bytes = Object.values(result.metafile.outputs).reduce((s, o) => s + o.bytes, 0);
-console.log(`web build -> ${path.relative(root, out)}  (game.js ${(bytes / 1024).toFixed(0)} KB, v${pkg.version})`);
+console.log(`web build -> ${path.relative(root, out)}  (game.js ${(bytes / 1024).toFixed(0)} KB, art ${(artBytes / 1048576).toFixed(1)} MB, v${pkg.version})`);

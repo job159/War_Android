@@ -143,7 +143,7 @@ class Session {
     go('battle', {
       mode: 'online', simMode: 'pvp', engine, mySide, online: true,
       title: `線上對戰 vs ${this.peer ? this.peer.name : ''}`, subtitle: `ROOM ${this.room.code}`, bg: 'arena', timeLimit: 90, level: S.d.profile.level,
-      deck, goldMult: 0.5, startText: 'DUEL START', music: 'battle',
+      deck, goldMult: 0.5, startText: '對決開始', music: 'battle',
       onEvents(evs) { if (me.isHost) me.pendingEv.push(...evs); },
       onTick() { if (me.isHost) me._hostFlush(); },
       onSurrender() { if (me.isHost) engine.surrender(0); else me.room.send('in', { type: 'surrender' }); },
@@ -222,7 +222,7 @@ register({
 <div class="sec-title">練習對戰（對電腦）</div>
 <div class="row" style="gap:8px"><button class="btn grow" data-act="practice" data-d="easy">簡單</button><button class="btn blue grow" data-act="practice" data-d="normal">普通</button><button class="btn red grow" data-act="practice" data-d="hard">困難</button></div>
 <button class="panel row team-row" style="margin-top:12px" data-act="team"><div class="grow"><b>對戰隊伍</b><div class="dim">線上對戰、競技場與練習使用</div></div>${icon('swords')}<span>編隊</span></button>
-<div class="dim center" style="margin-top:10px">線上對戰：雙方題目完全相同，答對越快越多，能量越多。奧義可以手動施放，也可開啟 AUTO。</div>
+<div class="dim center" style="margin-top:10px">線上對戰：雙方題目完全相同，答對越快越多，能量越多。奧義可以手動施放，也可開啟「自動」。</div>
 </div>`;
     };
     render();
@@ -285,7 +285,7 @@ register({
     const s = session;
     if (!s) { el.innerHTML = '<div class="pad">房間已關閉</div>'; return {}; }
     const card = (p, me) => p ? `<div class="pr-card ${p.ready ? 'ready' : ''}"><img class="pr-av" src="${heroImageURL(HERO_MAP[p.avatar] || HERO_MAP.pebble, { crop: 'face' })}"><div class="grow"><b>${esc(p.name)}</b>${me ? ' <span class="dim">（你）</span>' : ''}<div class="dim">Lv.${p.level}　戰力 ${fmt(wirePower(p.team))}</div>
-<div class="ao-team">${p.team.map((w) => `<img src="${heroImageURL(HERO_MAP[w.id], { crop: 'face', skin: w.skin })}">`).join('')}</div></div><span class="pr-ready">${p.ready ? 'READY' : '準備中'}</span></div>`
+<div class="ao-team">${p.team.map((w) => `<img src="${heroImageURL(HERO_MAP[w.id], { crop: 'face', skin: w.skin })}">`).join('')}</div></div><span class="pr-ready">${p.ready ? '已準備' : '準備中'}</span></div>`
       : '<div class="pr-card empty"><div class="spinner small"></div><span>等待對手加入…</span></div>';
     const render = () => {
       const P = POOLS[s.settings.pool];
@@ -360,7 +360,7 @@ function arenaSetup(i) {
     seed: randomSeed(), playerUnits: units, enemyUnits: enemy, enemyEnergy: false, oppName: o.name,
     opponentAI: { acc: 0.55 + o.quality * 0.38, mean: 5.2 - o.quality * 2.2, par: 6, seed: o.seed },
     deck: { books: S.d.learn.book === 'both' ? ['c', 't'] : [S.d.learn.book || 'c'], levels: [Math.min(6, 1 + Math.floor(S.d.profile.level / 16))], glv: Math.min(3, 1 + Math.floor(S.d.profile.level / 30)), grammarShare: 0.3, seed: randomSeed() },
-    goldMult: 0.5, startText: 'ARENA', music: 'battle',
+    goldMult: 0.5, startText: '競技場', music: 'battle',
     onEnd: (summary) => {
       A.tries++;
       track('pvp', 1);

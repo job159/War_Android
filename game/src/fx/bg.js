@@ -35,7 +35,29 @@ export function setBgPaused(p) {
 }
 export function setBgLowFx(v) { lowFx = v; resize(); }
 
+// Painted scenes behind the sky layer: theme -> scene key; the resolver maps a key to an asset URL (or null).
+const SCENES = { default: 'home', heroes: 'summon', adventure: 'map', pvp: 'pvp', shop: 'shop', study: 'study' };
+let sceneResolver = () => null;
+let sceneActive = false, sceneUrl = '', sceneFlip = 0;
+export function setSceneResolver(fn) { sceneResolver = fn; }
+function showScene(name) {
+  const el = document.getElementById('scene');
+  if (!el) return;
+  const url = sceneResolver(SCENES[name] || 'home');
+  if (url === sceneUrl) return;
+  sceneUrl = url || '';
+  sceneActive = !!url;
+  const layers = el.children;
+  sceneFlip = 1 - sceneFlip;
+  const on = layers[sceneFlip], off = layers[1 - sceneFlip];
+  if (url) on.style.backgroundImage = `url("${url}")`;
+  on.classList.toggle('on', !!url);
+  off.classList.remove('on');
+  sky = null;
+}
+
 export function setBgTheme(name) {
+  showScene(name);
   const t = THEMES[name] || THEMES.default;
   if (t === target) return;
   theme = blend(theme, target, mixT);
@@ -123,10 +145,16 @@ function loop(ts) {
 
 function draw(T, dt, time) {
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
-  g.drawImage(sky, 0, 0, w, h);
+  if (sceneActive) {
+    // painted scene underneath: only a soft theme tint (keeps the UI readable) + motes
+    g.clearRect(0, 0, w, h);
+    g.globalAlpha = 0.42;
+    g.drawImage(sky, 0, 0, w, h);
+    g.globalAlpha = 1;
+  } else g.drawImage(sky, 0, 0, w, h);
   g.globalCompositeOperation = 'lighter';
   g.fillStyle = '#ffffff';
-  for (const s of stars) {
+  for (const s of (sceneActive ? [] : stars)) {
     g.globalAlpha = 0.3 + 0.6 * (0.5 + 0.5 * Math.sin(time * s.s + s.p));
     g.fillRect(s.x, s.y, s.r, s.r);
   }

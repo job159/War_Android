@@ -1,5 +1,6 @@
 // Procedural monster art (SVG), facing left (enemies stand on the right). viewBox 0 0 240 240, feet ~ y 228.
 //   monsterSVG(kind, element, { expr: 'normal'|'hurt', crown }) -> svg string
+import { monsterAsset } from './assets.js';
 import { ELEMENTS } from '../core/data/elements.js';
 import { lighten, darken, ink, mix } from './color.js';
 import { heroSVG } from './hero.js';
@@ -232,6 +233,8 @@ export function monsterSVG(kind, element, opts = {}) {
 
 const urlCache = new Map();
 export function monsterImageURL(kind, element, opts = {}) {
+  const painted = monsterAsset(opts.id, element);
+  if (painted) return painted;
   const key = `${kind}|${element}|${opts.expr || 'normal'}|${opts.crown ? 1 : 0}`;
   let url = urlCache.get(key);
   if (!url) {

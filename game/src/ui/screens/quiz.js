@@ -70,7 +70,7 @@ ${q.sentence ? `<div class="q-sent">${esc(q.sentence).replace(/_{2,}/g, '<span c
       const fb = el.querySelector('.qz-fb');
       const exam = p.mode === 'exam';
       if (exam && ok) { setTimeout(() => { i++; nextQ(); }, 350); return; }
-      fb.innerHTML = `<div class="panel qz-explain ${ok ? 'ok' : 'ng'}"><b>${ok ? '✔ 正確！' : '✘ 正確答案：' + esc(q.options[q.answer])}</b>
+      fb.innerHTML = `<div class="panel qz-explain ${ok ? 'ok' : 'ng'}"><b>${ok ? icon('check') + ' 正確！' : icon('close') + ' 正確答案：' + esc(q.options[q.answer])}</b>
 ${(q.reveal || []).map((r) => `<div class="qz-rev">${esc(r)}</div>`).join('')}${q.explain ? `<div class="qz-ex">${esc(q.explain)}</div>` : ''}
 <div class="row" style="margin-top:8px">${q.speak ? `<button class="btn small" data-act="say">${icon('speaker')} 發音</button>` : ''}<button class="btn primary grow" data-act="next">${i + 1 >= total ? '查看結果' : '下一題'}</button></div></div>`;
       changed('quiz');

@@ -70,16 +70,16 @@ register({
       }).join('');
       const nextMs = (Math.floor(counts(d.learn).mastered / 25) + 1) * 25;
       el.innerHTML = `<div class="pad">
-<div class="panel ornate study-head"><div class="row"><div class="sh-streak">🔥<b>${studyStreak()}</b><small>天連續學習</small></div><div class="grow">${cards}</div></div>
+<div class="panel ornate study-head"><div class="row"><div class="sh-streak">${icon('flame')}<b>${studyStreak()}</b><small>天連續學習</small></div><div class="grow">${cards}</div></div>
 <div class="dim" style="margin-top:6px">下一個里程碑：掌握 ${nextMs} 字 → 魔晶石獎勵（每 25 字一次）</div></div>
 <div class="study-grid">
   <button class="st-card c1" data-act="review">${icon('refresh')}<b>每日複習</b><span>${due} 題到期</span>${due ? '<i class="dot"></i>' : ''}</button>
-  <button class="st-card c2" data-act="mistakes">${icon('book')}<b>錯題本</b><span>${mist} 題待訂正</span></button>
-  <button class="st-card c3" data-act="codex">${icon('tome')}<b>單字圖鑑</b><span>收集 ${fmt(counts(d.learn).seen)} 字</span></button>
+  <button class="st-card c2" data-act="mistakes">${icon('bookmark')}<b>錯題本</b><span>${mist} 題待訂正</span></button>
+  <button class="st-card c3" data-act="codex">${icon('codex')}<b>單字圖鑑</b><span>收集 ${fmt(counts(d.learn).seen)} 字</span></button>
   <button class="st-card c4" data-act="lessons">${icon('study')}<b>文法講堂</b><span>已讀 ${d.learn.lessonsRead.length}/44 課</span></button>
 </div>
 <div class="sec-title">模擬考 <span class="more">考試成績換金幣與魔晶石</span></div>
-${Object.entries(EXAMS).map(([id, E]) => `<button class="exam-row" data-act="exam" data-id="${id}"><div class="ex-ic">${icon('scroll')}</div><div class="grow"><b>${E.zh}</b> <span class="en-title dim" style="font-size:10px">${E.en}</span><div class="dim">${E.desc}</div></div><div class="ex-best"><small>最佳</small><b>${d.learn.examBest[id] || '-'}</b></div></button>`).join('')}
+${Object.entries(EXAMS).map(([id, E]) => `<button class="exam-row" data-act="exam" data-id="${id}"><div class="ex-ic">${icon('scroll')}</div><div class="grow"><b>${E.zh}</b><div class="dim">${E.desc}</div></div><div class="ex-best"><small>最佳</small><b>${d.learn.examBest[id] || '-'}</b></div></button>`).join('')}
 <div class="sec-title">自由練習</div>
 <div class="row wrap" style="gap:8px">${[['w2m', '看英選中'], ['m2w', '看中選英'], ['cloze', '例句克漏字'], ['listen', '聽音選字'], ['syn', '同義字'], ['gram', '文法題']].map(([t, z]) => `<button class="btn small" data-act="practice" data-t="${t}">${z}</button>`).join('')}</div>
 <div class="sec-title">學習設定</div>

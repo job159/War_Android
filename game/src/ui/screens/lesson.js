@@ -3,6 +3,8 @@
 import { register, go, toast } from '../app.js';
 import { bindActions, esc } from '../dom.js';
 import { icon } from '../../art/icons.js';
+import { heroImageURL } from '../../art/hero.js';
+import { HERO_MAP } from '../../core/data/heroes.js';
 import { S, changed, grant } from '../../core/state.js';
 import { content } from '../../core/quiz/content.js';
 import { track } from '../../core/missions.js';
@@ -52,7 +54,7 @@ function visualHTML(v) {
     }
     inner = `<svg class="lv-time" viewBox="0 0 100 ${H}">${svg}</svg>`;
   }
-  return `<div class="panel lv"><b>📊 ${esc(v.title || '圖解')}</b>${inner}${v.note ? `<div class="dim lv-note">${safeB(v.note)}</div>` : ''}</div>`;
+  return `<div class="panel lv"><b>${esc(v.title || '圖解')}</b>${inner}${v.note ? `<div class="dim lv-note">${safeB(v.note)}</div>` : ''}</div>`;
 }
 
 register({
@@ -65,7 +67,7 @@ register({
     el.innerHTML = `<div class="lesson" style="--c1:${cat.c1};--c2:${cat.c2}">
 <div class="lsn-head"><small>${cat.icon} ${esc(cat.name)} · ${esc(L.level)}</small><h2>${esc(L.title)}</h2><div class="en-title">${esc(L.en)}</div><p>${esc(L.summary)}</p></div>
 <div class="pad">
-${L.hook ? `<div class="panel lsn-hook">💬 ${esc(L.hook)}</div>` : ''}
+${L.hook ? `<div class="panel lsn-hook"><img class="lsn-teacher" src="${heroImageURL(HERO_MAP.rune, { crop: 'face' })}" alt=""><div><b class="lsn-tname">露恩老師</b>${esc(L.hook)}</div></div>` : ''}
 ${visualHTML(L.visual)}
 <div class="sec-title">公式結構</div>
 <div class="lsn-forms">${L.structure.map((s) => `<div class="lf tone-${s.tone || 'a'}"><small>${esc(s.label)}</small><b>${esc(s.formula)}</b></div>`).join('')}</div>

@@ -1,6 +1,6 @@
 {
   "name": "lexica",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "詞靈幻想 LEXICA - 以英文作答為戰鬥核心的角色扮演遊戲（Android WebView 與瀏覽器）",
   "license": "MIT",
@@ -26,5 +26,9 @@
   "devDependencies": {
     "esbuild": "^0.28.2",
     "qrcode": "^1.5.4"
+  },
+  "dependencies": {
+    "pixi-filters": "^6.1.5",
+    "pixi.js": "^8.22.0"
   }
 }

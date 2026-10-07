@@ -4,6 +4,7 @@ import { bindActions, esc } from '../dom.js';
 import { changed } from '../../core/state.js';
 import { dailyState, weeklyState, achievementState, claimDaily, claimWeekly, claimAchievement, dailyBonusReady, DAILY_BONUS, syncCounters } from '../../core/missions.js';
 import { rewardList, bar } from '../widgets.js';
+import { icon } from '../../art/icons.js';
 import { sfx } from '../sound.js';
 import { mergeRewards } from './mail.js';
 
@@ -30,7 +31,7 @@ register({
         body = `<div class="panel">${weeklyState().map((x) => row(x, 'weekly')).join('')}</div>`;
       } else {
         body = `<div class="panel">${achievementState().map((a) => `<div class="mission ${a.done ? 'claimed' : a.ready ? 'ready' : ''}">
-<div class="grow"><div class="ms-t">🏆 ${esc(a.zh)} ${a.done ? '（完成）' : `· 第 ${a.tier + 1} 階`}</div><div class="dim">${esc(a.text)}</div>${bar(a.v / a.need, a.ready ? 'green' : '')}<div class="dim">${Math.min(a.v, a.need)} / ${a.need}</div></div>
+<div class="grow"><div class="ms-t">${icon('trophy')} ${esc(a.zh)} ${a.done ? '（完成）' : `· 第 ${a.tier + 1} 階`}</div><div class="dim">${esc(a.text)}</div>${bar(a.v / a.need, a.ready ? 'green' : '')}<div class="dim">${Math.min(a.v, a.need)} / ${a.need}</div></div>
 <div class="ms-r">${a.done ? '' : rewardList([{ k: 'gems', n: a.gemsNow }])}</div>
 <button class="btn small ${a.ready ? 'primary' : ''}" data-act="claim" data-kind="ach" data-id="${a.id}" ${a.ready ? '' : 'disabled'}>${a.done ? '完成' : a.ready ? '領取' : '進行中'}</button></div>`).join('')}</div>`;
       }

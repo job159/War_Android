@@ -90,12 +90,12 @@ export function campaignSetup(c, n) {
   const stage = buildStage(c, n);
   const ch = CHAPTERS[c - 1];
   return baseSetup({
-    mode: 'campaign', stage, title: n === 10 ? `${ch.zh}・首領戰` : `${ch.zh} ${c}-${n}`, subtitle: `CHAPTER ${c}  ${ch.en}`,
+    mode: 'campaign', stage, title: n === 10 ? `${ch.zh}・首領戰` : `${ch.zh} ${c}-${n}`, subtitle: `第 ${c} 章`,
     bg: stage.bg, timeLimit: stage.timeLimit, level: stage.level,
     enemyUnits: stage.enemies.map(enemySpec),
     deck: { books: bookList(), levels: [stage.tier], glv: stage.glv, grammarShare: stage.grammarShare, seed: randomSeed() },
     music: stage.kind === 'boss' ? 'boss' : 'battle',
-    startText: stage.kind === 'boss' ? 'BOSS BATTLE' : 'BATTLE START',
+    startText: stage.kind === 'boss' ? '首領戰' : '戰鬥開始',
     retry: () => campaignSetup(c, n),
     next: () => (n < STAGES_PER_CHAPTER ? campaignSetup(c, n + 1) : c < CHAPTERS.length ? campaignSetup(c + 1, 1) : null),
     onEnd: (summary) => {
@@ -180,7 +180,7 @@ export function towerFloor(f) {
 export function towerSetup(f) {
   const fl = towerFloor(f);
   return baseSetup({
-    mode: 'tower', title: `試煉之塔 第 ${f} 層`, subtitle: 'TRIAL TOWER', bg: fl.bg, timeLimit: fl.kind === 'boss' ? 120 : 90, level: fl.lv,
+    mode: 'tower', title: `試煉之塔 第 ${f} 層`, subtitle: '試煉之塔', bg: fl.bg, timeLimit: fl.kind === 'boss' ? 120 : 90, level: fl.lv,
     enemyUnits: fl.enemies.map(enemySpec),
     deck: { books: bookList(), levels: [fl.tier], glv: fl.glv, grammarShare: 0.35, seed: randomSeed() },
     music: fl.kind === 'boss' ? 'boss' : 'battle',
@@ -227,7 +227,7 @@ export function dungeonSetup(id, diff = 1) {
   const lv = Math.max(1, Math.round(pl * (0.75 + diff * 0.2)));
   const tier = Math.min(6, 1 + Math.floor(pl / 16));
   return baseSetup({
-    mode: 'dungeon', title: `${D.zh}（${['', '普通', '困難', '地獄'][diff]}）`, subtitle: D.en.toUpperCase(), bg: D.bg, timeLimit: 90, level: lv,
+    mode: 'dungeon', title: `${D.zh}（${['', '普通', '困難', '地獄'][diff]}）`, subtitle: '每日地下城', bg: D.bg, timeLimit: 90, level: lv,
     enemyUnits: D.enemies.map(([e, el]) => enemySpec({ id: e, element: el, level: lv, scale: 0.85 + diff * 0.1 })),
     deck: { books: bookList(), levels: [tier, Math.max(1, tier - 1)], glv: Math.min(3, 1 + Math.floor(pl / 30)), grammarShare: 0.3, only: D.only, seed: randomSeed() },
     goldMult: id === 'gold' ? 2.5 : 1,
@@ -274,10 +274,10 @@ export function raidSetup() {
   const pl = S.d.profile.level;
   const lv = Math.max(5, pl + 5);
   return baseSetup({
-    mode: 'raid', raid: true, title: RAID_BOSS.zh, subtitle: 'WEEKLY RAID', bg: 'citadel', timeLimit: 90, level: lv,
+    mode: 'raid', raid: true, title: RAID_BOSS.zh, subtitle: '每週首領', bg: 'citadel', timeLimit: 90, level: lv,
     enemyUnits: [enemySpec({ id: RAID_BOSS.id, element: RAID_BOSS.element, level: lv, boss: true, scale: 1.4 })],
     deck: { books: bookList(), levels: [Math.min(6, 1 + Math.floor(pl / 16))], glv: Math.min(3, 1 + Math.floor(pl / 30)), grammarShare: 0.4, seed: randomSeed() },
-    music: 'boss', startText: 'RAID BATTLE',
+    music: 'boss', startText: '討伐開始',
     onEnd: (summary) => {
       const R = raidState();
       R.used = (R.used || 0) + 1;
@@ -317,11 +317,11 @@ export function practiceSetup(diff = 'normal') {
   const rng = makeRng(randomSeed());
   const units = teamUnits('pvp').length ? teamUnits('pvp') : teamUnits('pve');
   return {
-    mode: 'practice', simMode: 'pvp', title: `練習對戰（${{ easy: '簡單', normal: '普通', hard: '困難' }[diff]}）`, subtitle: 'PRACTICE DUEL', bg: 'arena', timeLimit: 90, level: pl,
+    mode: 'practice', simMode: 'pvp', title: `練習對戰（${{ easy: '簡單', normal: '普通', hard: '困難' }[diff]}）`, subtitle: '練習對戰', bg: 'arena', timeLimit: 90, level: pl,
     seed: randomSeed(), playerUnits: units, enemyUnits: aiTeam(rng, Math.max(1, pl + D.lv), D.q), enemyEnergy: false,
     oppName: rng.pick(NAMES), opponentAI: { acc: D.acc, mean: D.mean, par: 6, seed: randomSeed() },
     deck: { books: bookList(), levels: [Math.min(6, 1 + Math.floor(pl / 16))], glv: Math.min(3, 1 + Math.floor(pl / 30)), grammarShare: 0.3, seed: randomSeed() },
-    goldMult: 0.5, music: 'battle', startText: 'DUEL START',
+    goldMult: 0.5, music: 'battle', startText: '對決開始',
     retry: () => practiceSetup(diff),
     onEnd: (summary) => {
       track('pvp', 1);

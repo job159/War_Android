@@ -52,7 +52,7 @@ export function smithTab(el) {
   ${maxed ? '<div class="center gold-text" style="font-weight:900">已強化至最高等級 +15！</div>' : `
   <div class="enh-info"><div><small>主屬性</small><b>${STAT_ZH[g.main.k]} ${fmtStat(g.main.k, g.main.v * (1 + 0.06 * g.lvl))} → <span class="good">${fmtStat(g.main.k, nextMain)}</span></b></div>
   <div><small>成功率</small><b class="${p >= 0.7 ? 'good' : p >= 0.4 ? 'warnc' : 'bad'}">${Math.round(p * 100)}%</b>${g.bless ? `<span class="bless">祝福 +${Math.round(g.bless * 100)}%</span>` : ''}</div></div>
-  ${risky ? `<div class="enh-warn">⚠ +${ENHANCE_DOWNGRADE_FROM} 以上強化失敗會降 1 級（可用保護符避免）</div>` : ''}
+  ${risky ? `<div class="enh-warn">+${ENHANCE_DOWNGRADE_FROM} 以上強化失敗會降 1 級（可用保護符避免）</div>` : ''}
   <div class="row enh-opts"><label class="chk ${item('lucky') ? '' : 'off'}"><input type="checkbox" data-opt="lucky" ${useLucky ? 'checked' : ''} ${item('lucky') ? '' : 'disabled'}>${icon('clover')} 幸運符 +15%</label>
   <label class="chk ${item('protect') && risky ? '' : 'off'}"><input type="checkbox" data-opt="protect" ${useProtect && risky ? 'checked' : ''} ${item('protect') && risky ? '' : 'disabled'}>${icon('charm')} 保護符</label></div>
   <div class="center" style="margin:6px 0">${costLabel({ gold: c.gold, stone: c.stone })}</div>
@@ -137,7 +137,7 @@ ${free.length ? `<div class="gear-grid" style="margin-top:10px">${free.map((x) =
       busy = false;
       changed('gear');
       const R = GEAR_RARITY[g.rarity];
-      modal({ title: g.rarity >= 3 ? '✨ 鍛造出稀世珍品！' : '鍛造完成', body: `<div class="center forge-res" style="--gc:${R.color}"><div class="fr-ic">${icon(SLOT_INFO[g.slot].icon)}</div><b style="color:${R.color}">${R.zh}・${esc(g.name)}</b><div class="gs-lines" style="justify-content:center">${gearLines(g)}</div></div>`, buttons: [{ label: '好', cls: 'primary', value: 1 }] });
+      modal({ title: g.rarity >= 3 ? '鍛造出稀世珍品' : '鍛造完成', body: `<div class="center forge-res" style="--gc:${R.color}"><div class="fr-ic">${icon(SLOT_INFO[g.slot].icon)}</div><b style="color:${R.color}">${R.zh}・${esc(g.name)}</b><div class="gs-lines" style="justify-content:center">${gearLines(g)}</div></div>`, buttons: [{ label: '好', cls: 'primary', value: 1 }] });
       if (g.rarity >= 3) sfx('ssr');
     },
     pick: (b) => { const u = b.dataset.uid; if (picked.has(u)) picked.delete(u); else picked.add(u); render(); },

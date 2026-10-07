@@ -62,7 +62,7 @@ register({
   <div class="row"><b class="grow">${MODE_ZH[mode]}</b><span class="dim">戰力</span><b class="gold-text" style="font-size:18px">${fmt(teamPower(team))}</b></div>
   <div class="form-rows"><div class="form-row back"><small>後排</small>${slot(2)}${slot(3)}</div><div class="form-row front"><small>前排</small>${slot(0)}${slot(1)}</div></div>
   <div class="dim center">${swapFrom >= 0 ? '點選另一個位置交換' : '點選位置可交換站位；敵人會優先攻擊前排'}</div>
-  ${hints.length ? `<div class="hints">${hints.map((x) => `<span>⚠ ${x}</span>`).join('')}</div>` : ''}
+  ${hints.length ? `<div class="hints">${hints.map((x) => `<span>${icon('info')} ${x}</span>`).join('')}</div>` : ''}
   <div class="row" style="margin-top:8px"><button class="btn small grow" data-act="auto">自動編隊</button><button class="btn small grow" data-act="clear">清空</button>${params.done ? `<button class="btn small primary grow" data-act="done">確定</button>` : ''}</div>
 </div>
 <div class="sec-title">選擇角色 <span class="more">點擊加入／移出</span></div>

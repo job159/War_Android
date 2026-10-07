@@ -62,7 +62,7 @@ function renderTopbar() {
   const sec = HERO_MAP[d.profile.avatar] || HERO_MAP.pebble;
   const left = isRoot && top.id === 'home'
     ? `<button class="tb-profile" data-act="profile"><img src="${heroImageURL(sec, { crop: 'face' })}"><span class="tb-lv">${d.profile.level}</span><span class="tb-name">${esc(d.profile.name || '契約者')}</span></button>`
-    : `<button class="tb-back" data-act="back">${isRoot ? '' : icon('back')}</button><h1 class="tb-title">${esc(typeof scr.title === 'function' ? scr.title(top.params) : scr.title || '')}</h1>`;
+    : `<button class="tb-back" data-act="back">${isRoot ? '' : icon('back')}</button><h1 class="tb-title"><span>${esc(typeof scr.title === 'function' ? scr.title(top.params) : scr.title || '')}</span></h1>`;
   topbar.innerHTML = `${left}<div class="tb-cur">
 <span class="pill" data-act="gold">${icon('coin')}<b>${fmt(d.cur.gold)}</b></span>
 <span class="pill" data-act="gems">${icon('gem')}<b>${fmt(d.cur.gems)}</b><i class="plus">${icon('plus')}</i></span>

@@ -5,6 +5,7 @@
 //   expr: normal | happy | angry | hurt | wink        crop: full | bust | face | card
 //
 // Canvas: viewBox space 240 x 320 (x 0..240, y -20..300). Head center ~ (120,112), feet ~ y 282.
+import { heroAsset } from './assets.js';
 import { lighten, darken, ink, mix } from './color.js';
 
 const CROPS = {
@@ -696,6 +697,8 @@ const urlCache = new Map();
 
 /** Blob URL for an <img>: cached per hero/skin/expression/crop. */
 export function heroImageURL(hero, opts = {}) {
+  const painted = heroAsset(hero.id, opts);
+  if (painted) return painted;
   const key = `${hero.id}|${opts.skin || ''}|${opts.expr || 'normal'}|${opts.crop || 'full'}|${opts.aura ? 1 : 0}`;
   let url = urlCache.get(key);
   if (!url) {

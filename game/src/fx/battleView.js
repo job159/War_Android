@@ -4,7 +4,7 @@ import { FX, rgba, ease, sprite } from './particles.js';
 import { playVfx, PAL, glowBurst, ring, rising } from './vfx.js';
 import { makeRng } from '../core/rng.js';
 
-const BG = {
+export const BG = {
   plains: { sky: ['#5aa8e8', '#bfe8ff'], far: '#6a9ac8', mid: '#4a9a5a', ground: ['#5ab85a', '#2a6a2a'], amb: 'leaf', ambC: '#a8e86a', deco: 'trees' },
   forest: { sky: ['#1a3a4a', '#4a8a7a'], far: '#1a3a2a', mid: '#2a5a2a', ground: ['#3a6a2a', '#1a3a14'], amb: 'glow', ambC: '#d8ff9a', deco: 'pines' },
   canyon: { sky: ['#3a0a10', '#c84a1a'], far: '#5a1a10', mid: '#7a2a14', ground: ['#8a3a1a', '#3a1008'], amb: 'glow', ambC: '#ffb04a', deco: 'lava' },
@@ -154,7 +154,7 @@ export class BattleView {
         u.hitT = 0.18;
         u.hitDir = src ? (src.x < u.x ? 1 : -1) : (u.side === 0 ? -1 : 1);
         const foe = u.side !== sideOfViewer;
-        this._float(u, e.v, e.crit ? '#ffd84a' : foe ? '#ffffff' : '#ff8a8a', e.crit ? 1.35 : 1, e.crit ? 'CRITICAL' : foe && e.el > 0 ? '弱點' : foe && e.el < 0 ? '抵抗' : '');
+        this._float(u, e.v, e.crit ? '#ffd84a' : foe ? '#ffffff' : '#ff8a8a', e.crit ? 1.35 : 1, e.crit ? '暴擊' : foe && e.el > 0 ? '弱點' : foe && e.el < 0 ? '抵抗' : '');
         if (e.sh) this._float(u, e.sh, '#7ae0ff', 0.8, '吸收');
         if (e.crit) this.shake(3, 0.12);
         break;
@@ -206,7 +206,7 @@ export class BattleView {
         this.shake(12, 0.4);
         glowBurst({ fx: this.fx }, u.x, u.cy, '#ffd84a', 40, 500, 14, 0, 0.8);
         ring({ fx: this.fx }, u.x, u.cy, '#ffffff', 10, 200, 0.6, 0, 10, 0.8);
-        this._float(u, 'BREAK!', '#ffd84a', 1.8);
+        this._float(u, '破防！', '#ffd84a', 1.8);
         break;
       }
       default:
@@ -412,22 +412,15 @@ export class BattleView {
         g.drawImage(sprite('star', '#ffd84a'), x + Math.cos(a) * u.w * 0.25 - 6, y - u.h - 2 + Math.sin(a) * 4 - 6, 12, 12);
       }
     }
-    // HP bar
-    const bw = Math.min(70, u.w * 0.7);
-    const by = y - u.h - (u.boss ? 4 : 10) + bob;
-    const frac = Math.max(0, u.hp / u.maxHp);
-    g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(x - bw / 2 - 1, by - 1, bw + 2, 6);
-    g.fillStyle = u.side === 0 ? (frac > 0.5 ? '#4ade80' : frac > 0.25 ? '#facc15' : '#f87171') : '#ff4a5a';
-    g.fillRect(x - bw / 2, by, bw * frac, 4);
-    if (u.shield > 1) { g.fillStyle = '#9ee0ff'; g.fillRect(x - bw / 2, by - 3, bw * Math.min(1, u.shield / u.maxHp), 2); }
-    // status icons
+    // no HP bar over the character (hero cards + the enemy gauge show HP); status icons only
+    const by = y - u.h - (u.boss ? 4 : 8) + bob;
     const icons = st.filter((s) => s !== 'regen').slice(0, 4);
-    icons.forEach((s, i) => this._statusIcon(g, s, x - bw / 2 + i * 13, by - 14));
+    icons.forEach((s, i) => this._statusIcon(g, s, x - (icons.length * 13) / 2 + i * 13, by - 6));
     // boss break pips
     if (u.charge > 0 && u.chargeNeed) {
       const n = u.chargeNeed;
       for (let i = 0; i < n; i++) {
-        const px = x - (n - 1) * 11 + i * 22, py = by - 30;
+        const px = x - (n - 1) * 11 + i * 22, py = by - 22;
         g.fillStyle = i < u.chargeProg ? '#ffd84a' : 'rgba(0,0,0,.6)';
         g.strokeStyle = '#ffd84a'; g.lineWidth = 2;
         g.beginPath(); g.moveTo(px, py - 8); g.lineTo(px + 7, py); g.lineTo(px, py + 8); g.lineTo(px - 7, py); g.closePath(); g.fill(); g.stroke();
@@ -479,7 +472,7 @@ export class BattleView {
       g.font = `900 ${10 + f.size * 2}px "Noto Sans TC", sans-serif`;
       g.lineWidth = 3;
       g.strokeText(f.label, f.x, y - size * 0.8);
-      g.fillStyle = f.label === 'CRITICAL' ? '#ffb84a' : f.label === '弱點' ? '#ff6a4a' : '#9ad8ff';
+      g.fillStyle = f.label === '暴擊' ? '#ffb84a' : f.label === '弱點' ? '#ff6a4a' : '#9ad8ff';
       g.fillText(f.label, f.x, y - size * 0.8);
     }
     g.restore();
@@ -488,9 +481,20 @@ export class BattleView {
   // ---------------------------------------------------------------- background
 
   _renderBg() {
+    this.bgCanvas = paintBattleBg(this.bgKey, this.w + 16, this.h + 16, this.dpr);
+  }
+}
+
+/** Procedural battlefield painting (fallback when the region's painted background is missing). */
+export function paintBattleBg(bgKey, W, H, d) {
+  return new BgPainter(bgKey).paint(W, H, d);
+}
+
+class BgPainter {
+  constructor(bgKey) { this.bgKey = BG[bgKey] ? bgKey : 'plains'; }
+
+  paint(W, H, d) {
     const B = BG[this.bgKey];
-    const d = this.dpr;
-    const W = this.w + 16, H = this.h + 16;
     const c = document.createElement('canvas');
     c.width = Math.round(W * d);
     c.height = Math.round(H * d);
@@ -527,7 +531,7 @@ export class BattleView {
     const v = g.createRadialGradient(W / 2, H * 0.6, H * 0.3, W / 2, H * 0.6, H);
     v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.45)');
     g.fillStyle = v; g.fillRect(0, 0, W, H);
-    this.bgCanvas = c;
+    return c;
   }
 
   _deco(g, B, W, H, hz, rng) {

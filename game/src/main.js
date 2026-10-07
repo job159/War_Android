@@ -3,15 +3,18 @@ import { HEROES } from './core/data/heroes.js';
 import { heroImageURL } from './art/hero.js';
 import { monsterImageURL } from './art/monster.js';
 import { injectIconDefs } from './art/icons.js';
-import { initBg, setBgPaused, setBgLowFx } from './fx/bg.js';
+import { initBg, setBgPaused, setBgLowFx, setSceneResolver } from './fx/bg.js';
 import { loadSave, S, saveNow, changed } from './core/state.js';
 import { loadBook, loadGrammar } from './core/quiz/content.js';
+import { loadManifest, bgAsset } from './art/assets.js';
+import { showTitle } from './ui/title.js';
 import { ensureDay, badges, syncCounters, checkMilestones } from './core/missions.js';
 import { initApp, register, tab, setBadgeProvider, go, toast } from './ui/app.js';
 import { subscribe } from './core/state.js';
 import { configure, unlockAudio, pauseAudio, resumeAudio, setEngine } from './ui/sound.js';
 import { AudioEngine } from './audio/engine.js';
 import * as soundMod from './ui/sound.js';
+import * as battleSetups from './ui/battleSetup.js';
 
 import './ui/screens/home.js';
 import './ui/screens/mail.js';
@@ -67,6 +70,9 @@ async function boot() {
   setBgLowFx(d.settings.fx === 'low');
   try { setEngine(new AudioEngine()); } catch (e) { console.warn('audio engine unavailable', e); }
   configure(d.settings);
+  setBoot(0.03, '讀取美術資源…');
+  await loadManifest();
+  setSceneResolver(bgAsset);
   setBoot(0.05, '讀取文法題庫…');
   try {
     await loadGrammar((p) => setBoot(0.05 + p * 0.25));
@@ -86,17 +92,19 @@ async function boot() {
   initApp();
   setBadgeProvider(badges);
   subscribe((topic) => {
-    if ((topic === 'battle' || topic === 'quiz') && checkMilestones()) { toast('📬 單字里程碑達成！獎勵已寄到信箱', 'gold'); changed('mail'); }
+    if ((topic === 'battle' || topic === 'quiz') && checkMilestones()) { toast('單字里程碑達成！獎勵已寄到信箱', 'gold'); changed('mail'); }
   });
   window.addEventListener('pointerdown', unlockAudio, { capture: true });
   window.__nativePause = () => { saveNow(); pauseAudio(); setBgPaused(true); };
   window.__nativeResume = () => { resumeAudio(); setBgPaused(false); if (ensureDay()) changed('day'); };
   document.addEventListener('visibilitychange', () => { if (document.hidden) window.__nativePause(); else window.__nativeResume(); });
   window.addEventListener('beforeunload', saveNow);
+  if (__DEV__) window.__lx = { S, go, changed, sound: soundMod, setups: battleSetups };
   setTimeout(() => bootEl.classList.add('done'), 150);
+  // title screen (skipped by the dev test frame so automated checks start straight away)
+  if (!(__DEV__ && /frame|notitle/.test(location.search))) await showTitle();
   if (!S.d.profile.onboarded) await runOnboarding();
   tab('home');
-  if (__DEV__) window.__lx = { S, go, changed, sound: soundMod };
 }
 
 boot();

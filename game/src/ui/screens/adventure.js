@@ -10,8 +10,11 @@ import { S, grant, changed } from '../../core/state.js';
 import { setBgTheme } from '../../fx/bg.js';
 import { campaignSetup, sweepParams, SWEEP_Q, stageUnlocked, towerSetup, towerFloor, DUNGEONS, dungeonSetup, dungeonRunsLeft, raidState, raidSetup, raidTiers, RAID_BOSS, RAID_TICKETS, bookList } from '../battleSetup.js';
 import { teamPower, rewardList } from '../widgets.js';
+import { sceneStyle } from '../../art/assets.js';
 import { fmt } from '../../core/util.js';
 import { sfx } from '../sound.js';
+import { playStory } from '../story.js';
+import { STORY } from '../../core/data/story.js';
 
 const GLV = ['', '基礎', '進階', '精熟'];
 export const tierText = (tier) => bookList().map((b) => `${BOOKS[b].zh.split(' ')[0]} ${BOOKS[b].levels[tier]}`).join('／');
@@ -38,10 +41,10 @@ register({
       for (const k in d.campaign.cleared) cleared++;
       const R = raidState();
       el.innerHTML = `<div class="pad adv">
-<button class="adv-card main" data-act="campaign"><div class="ac-bg bg-plains"></div><div class="ac-t"><small>MAIN STORY</small><b>主線冒險</b><span>12 章 · 120 關　已通關 ${cleared} 關</span></div>${icon('adventure')}</button>
+<button class="adv-card main" data-act="campaign"><div class="ac-bg bg-plains"${sceneStyle('plains')}></div><div class="ac-t"><small>主線劇情</small><b>主線冒險</b><span>12 章 · 120 關　已通關 ${cleared} 關</span></div>${icon('adventure')}</button>
 <div class="adv-grid">
-<button class="adv-card" data-act="tower"><div class="ac-bg bg-tower"></div><div class="ac-t"><small>TRIAL TOWER</small><b>試煉之塔</b><span>第 ${d.tower.floor} 層</span></div>${icon('tower')}</button>
-<button class="adv-card" data-act="raid"><div class="ac-bg bg-battlefield"></div><div class="ac-t"><small>WEEKLY RAID</small><b>每週首領</b><span>今日 ${RAID_TICKETS - (R.used || 0)}/${RAID_TICKETS} 次</span></div>${icon('dragon')}</button>
+<button class="adv-card" data-act="tower"><div class="ac-bg bg-tower"${sceneStyle('tower')}></div><div class="ac-t"><small>爬塔挑戰</small><b>試煉之塔</b><span>第 ${d.tower.floor} 層</span></div>${icon('tower')}</button>
+<button class="adv-card" data-act="raid"><div class="ac-bg bg-battlefield"${sceneStyle('battlefield')}></div><div class="ac-t"><small>團隊討伐</small><b>每週首領</b><span>今日 ${RAID_TICKETS - (R.used || 0)}/${RAID_TICKETS} 次</span></div>${icon('dragon')}</button>
 </div>
 <div class="sec-title">每日地下城 <span class="more">每天各 2 次，午夜重置</span></div>
 <div class="dun-list">${Object.entries(DUNGEONS).map(([id, D]) => `<button class="dun" data-act="dungeon" data-id="${id}"><div class="dun-ic">${icon(D.icon)}</div><div class="grow"><b>${D.zh}</b><div class="dim">${D.desc}</div></div><span class="dun-n">${dungeonRunsLeft(id)}/2</span></button>`).join('')}</div>
@@ -85,12 +88,13 @@ function dungeonPrompt(id) {
 }
 
 export function enemyRow(enemies) {
-  return `<div class="enemy-row">${enemies.map((e) => { const def = ENEMIES[e.id]; return `<div class="er ${e.boss ? 'boss' : ''}"><img src="${monsterImageURL(def.kind === 'queen' ? 'demon' : def.kind, e.element, { crown: !!def.crown })}">${elemIcon(e.element)}<small>${esc(def.zh)}</small></div>`; }).join('')}</div>`;
+  return `<div class="enemy-row">${enemies.map((e) => { const def = ENEMIES[e.id]; return `<div class="er ${e.boss ? 'boss' : ''}"><img src="${monsterImageURL(def.kind === 'queen' ? 'demon' : def.kind, e.element, { crown: !!def.crown, id: e.id })}">${elemIcon(e.element)}<small>${esc(def.zh)}</small></div>`; }).join('')}</div>`;
 }
 
 // ------------------------------------------------------------------ campaign map
 
 let lastChapter = 0;
+let storyPlaying = false;
 
 register({
   id: 'campaign', tab: 'adventure', title: '主線冒險',
@@ -116,19 +120,39 @@ register({
 <span class="nd-stars">${[0, 1, 2].map((i) => `<i class="${i < stars ? 'on' : ''}">${icon('star')}</i>`).join('')}</span><small>${c}-${n}</small></button>`);
       }
       el.innerHTML = `<div class="camp">
-<div class="camp-head bg-${ch.bg}">
+<div class="camp-head bg-${ch.bg}"${sceneStyle(ch.bg, 'center 70%')}>
   <button class="ch-nav" data-act="prev" ${c <= 1 ? 'disabled' : ''}>${icon('back')}</button>
-  <div class="grow center"><small class="en-title">CHAPTER ${c} · ${esc(ch.en)}</small><h2>${esc(ch.zh)}</h2><div class="dim">${tierText(ch.tier)} 單字 · ${GLV[ch.glv]}文法 · ★ ${chapterStars(c)}/30</div></div>
+  <div class="grow center"><small class="kicker">第 ${c} 章</small><h2>${esc(ch.zh)}</h2><div class="dim">${tierText(ch.tier)} 單字 · ${GLV[ch.glv]}文法 · ★ ${chapterStars(c)}/30</div></div>
   <button class="ch-nav" data-act="next" ${c >= CHAPTERS.length ? 'disabled' : ''}>${icon('back', 'flip')}</button>
 </div>
-<p class="camp-story">${esc(ch.story)}</p>
+<p class="camp-story">${esc(ch.story)}${unlockedCh ? ` <button class="story-b" data-act="story">${icon('scroll')}劇情</button>` : ''}</p>
 ${unlockedCh ? `<div class="path">${nodes.join('')}</div>` : `<div class="panel center" style="margin:20px">${icon('lock')} 通關第 ${c - 1} 章首領後解鎖</div>`}
 </div>`;
     };
+    const playChapter = (k) => {
+      if (storyPlaying) return Promise.resolve();
+      storyPlaying = true;
+      const ch = CHAPTERS[k - 1];
+      return playStory(STORY[k] || [], { bg: ch.bg, boss: { id: ch.boss[0], element: ch.boss[1] }, title: `第 ${k} 章　${ch.zh}` }).finally(() => { storyPlaying = false; });
+    };
+    const autoStory = () => {
+      const seen = (S.d.campaign.seen = S.d.campaign.seen || {});
+      const unlocked = c === 1 || !!S.d.campaign.cleared[`${c - 1}-${STAGES_PER_CHAPTER}`];
+      if (storyPlaying || !unlocked || seen[c] || !STORY[c]) return;
+      const k = c;
+      setTimeout(() => {
+        if (c !== k || !el.isConnected || storyPlaying) return; // moved on: it plays next time
+        seen[k] = true;
+        changed('campaign');
+        playChapter(k);
+      }, 350);
+    };
     render();
+    autoStory();
     bindActions(el, {
-      prev: () => { if (c > 1) { c--; sfx('tab'); render(); } },
-      next: () => { if (c < CHAPTERS.length) { c++; sfx('tab'); render(); } },
+      story: () => playChapter(c),
+      prev: () => { if (c > 1) { c--; sfx('tab'); render(); autoStory(); } },
+      next: () => { if (c < CHAPTERS.length) { c++; sfx('tab'); render(); autoStory(); } },
       stage: (b) => {
         const n = +b.dataset.n;
         if (!stageUnlocked(c, n)) { toast('請先通過前一關', 'bad'); return; }
@@ -147,15 +171,15 @@ function stagePrompt(c, n) {
   const power = teamPower(S.d.team.pve);
   const rec = Math.round(Math.pow(st.level, 1.12) * 260 + 800);
   const body = h(`<div class="stage-info">
-<div class="row"><b class="grow">${st.kind === 'boss' ? '👑 首領戰' : st.kind === 'elite' ? '⚔ 菁英戰' : '一般戰鬥'}</b><span class="dim">敵人 Lv.${st.level}</span></div>
+<div class="row"><b class="grow">${st.kind === 'boss' ? '<span class="kind-tag boss">首領</span>首領戰' : st.kind === 'elite' ? '<span class="kind-tag elite">菁英</span>菁英戰' : '一般戰鬥'}</b><span class="dim">敵人 Lv.${st.level}</span></div>
 ${enemyRow(st.enemies)}
 <div class="si-row"><span>題目</span><b>${tierText(st.tier)} 單字＋${GLV[st.glv]}文法（文法 ${Math.round(st.grammarShare * 100)}%）</b></div>
 <div class="si-row"><span>時間</span><b>${st.timeLimit} 秒</b></div>
 <div class="si-row"><span>隊伍戰力</span><b class="${power >= rec ? 'good' : 'warnc'}">${fmt(power)}</b><span class="dim">建議 ${fmt(rec)}</span></div>
 <div class="si-stars">${['通關', '無人倒下', '正確率 80%'].map((t, i) => `<span class="${i < stars ? 'ok' : ''}">${icon('star')}${t}</span>`).join('')}</div>
-${st.kind === 'boss' ? '<div class="si-tip">💡 首領蓄力時，限時內連續答對題目可以「打斷」它！</div>' : ''}
+${st.kind === 'boss' ? '<div class="si-tip">首領蓄力時，限時內連續答對題目可以「打斷」它！</div>' : ''}
 ${!cleared ? `<div class="si-tip gold">首次通關：魔晶石 ×${st.kind === 'boss' ? 100 : st.kind === 'elite' ? 40 : 20}${n === 10 ? '＋章節獎勵 300 魔晶石' : ''}</div>` : ''}
-<div class="si-tip">${stars >= 3 ? `⚡ 已三星：可用「${SWEEP_Q} 題複習掃蕩」直接領取獎勵，答對越多拿越多！` : '⚡ 三星通關後可解鎖「複習掃蕩」'}</div>
+<div class="si-tip">${stars >= 3 ? `已三星：可用「${SWEEP_Q} 題複習掃蕩」直接領取獎勵，答對越多拿越多！` : '三星通關後可解鎖「複習掃蕩」'}</div>
 </div>`);
   const buttons = [{ label: '編隊', value: 'team' }];
   if (stars >= 3) buttons.push({ label: `掃蕩（${SWEEP_Q}題）`, cls: 'blue', value: 'sweep' });
@@ -178,7 +202,7 @@ register({
       {
         const tiers = raidTiers();
         el.innerHTML = `<div class="pad">
-<div class="panel ornate center raid-head"><img src="${monsterImageURL('demon', 'dark')}"><div><small class="en-title">WEEKLY RAID · ${esc(RAID_BOSS.en)}</small><h2>${esc(RAID_BOSS.zh)}</h2><p class="dim">本週累積傷害越高，獎勵越豐厚。每天可挑戰 ${RAID_TICKETS} 次，首領不會倒下——盡情輸出吧！</p></div></div>
+<div class="panel ornate center raid-head"><img src="${monsterImageURL('demon', 'dark', { id: 'demonGeneral' })}"><div><small class="kicker">每週首領</small><h2>${esc(RAID_BOSS.zh)}</h2><p class="dim">本週累積傷害越高，獎勵越豐厚。每天可挑戰 ${RAID_TICKETS} 次，首領不會倒下——盡情輸出吧！</p></div></div>
 <div class="panel"><div class="row"><div class="grow"><small class="dim">本週累積傷害</small><div class="raid-total">${fmt(R.total)}</div></div><div><small class="dim">單場最高</small><div><b>${fmt(R.best)}</b></div></div></div></div>
 <div class="sec-title">累積獎勵</div>
 <div class="panel">${tiers.map((t, i) => { const done = R.total >= t.need; const claimed = R.claimed.includes(i); return `<div class="mission ${claimed ? 'claimed' : done ? 'ready' : ''}"><div class="grow"><b>第 ${i + 1} 階 · ${fmt(t.need)}</b></div><div class="ms-r">${rewardList(Object.entries(t.reward).map(([k, n]) => ({ k, n })))}</div><button class="btn small ${done && !claimed ? 'primary' : ''}" data-act="claim" data-i="${i}" ${done && !claimed ? '' : 'disabled'}>${claimed ? '已領' : '領取'}</button></div>`; }).join('')}</div>

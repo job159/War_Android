@@ -71,18 +71,18 @@ register({
       return `<div class="sm-res"><span>${icon('gem')}${fmt(cur('gems'))}</span><span>${icon('ticket')}${item('ticket')} 召喚券</span><span class="spark" data-act="spark">${icon('star')}契約點數 ${g.spark}/${SPARK_POINTS}</span></div>
 <div class="banner-card feat">
   <div class="bc-rays"></div><img class="bc-art" src="${heroImageURL(feat, { aura: true })}">
-  <div class="bc-info"><span class="bc-up">PICK UP</span><small class="en-title">SPOTLIGHT SUMMON</small><h3>精選召喚</h3><div class="bc-hero">${elemIcon(feat.element)} ${esc(feat.title)}<br><b>${esc(feat.zh)}</b> <span class="en-title">${esc(feat.name)}</span></div>
+  <div class="bc-info"><span class="bc-up">限定 UP</span><small>精選卡池</small><h3>精選召喚</h3><div class="bc-hero">${elemIcon(feat.element)} ${esc(feat.title)}<br><b>${esc(feat.zh)}</b> <span class="en-title">${esc(feat.name)}</span></div>
   <div class="dim">本週 SSR 中一半機率為精選角色<br>剩餘 <span data-countdown="${wkEnd}">${msToClock(wkEnd - Date.now())}</span></div></div>
   ${btns('featured')}
 </div>
 <div class="banner-card std">
-  <div class="bc-info"><small class="en-title">COVENANT SUMMON</small><h3>常駐召喚</h3><div class="dim">全部 ${HEROES.length} 位詞靈皆可能出現<br>SSR ${RATES.SSR * 100}% · SR ${RATES.SR * 100}% · R ${RATES.R * 100}%</div>
-  ${free ? '<button class="btn primary small free-b" data-act="free">✨ 每日免費單抽</button>' : '<div class="dim">今日免費單抽已使用</div>'}</div>
+  <div class="bc-info"><small>常駐卡池</small><h3>常駐召喚</h3><div class="dim">全部 ${HEROES.length} 位詞靈皆可能出現<br>SSR ${RATES.SSR * 100}% · SR ${RATES.SR * 100}% · R ${RATES.R * 100}%</div>
+  ${free ? `<button class="btn primary small free-b" data-act="free">${icon('star')} 每日免費單抽</button>` : '<div class="dim">今日免費單抽已使用</div>'}</div>
   <div class="bc-trio">${allSSR().slice(0, 3).map((x) => `<img src="${heroImageURL(x, { crop: 'bust' })}">`).join('')}</div>
   ${btns('standard')}
 </div>
 <div class="banner-card gold">
-  <div class="bc-info"><small class="en-title">GOLD SUMMON</small><h3>金幣召喚</h3><div class="dim">裝備、經驗藥水、強化石、禮物、角色碎片</div></div>
+  <div class="bc-info"><small>金幣卡池</small><h3>金幣召喚</h3><div class="dim">裝備、經驗藥水、強化石、禮物、角色碎片</div></div>
   <div class="sm-btns"><button class="sm-b" data-act="gold" data-n="1"><small>單抽</small><span>${icon('coin')}${fmt(GACHA_COST.goldSingle)}</span></button><button class="sm-b ten" data-act="gold" data-n="10"><small>十連</small><span>${icon('coin')}${fmt(GACHA_COST.goldTen)}</span></button></div>
 </div>
 <button class="btn ghost block" data-act="rates">${icon('info')} 機率與保底說明</button>`;
@@ -198,7 +198,7 @@ register({
         const ready = t <= p.tier && !claimed;
         rows.push(`<div class="pass-row ${claimed ? 'claimed' : ready ? 'ready' : t <= p.tier ? '' : 'locked'}"><div class="pr-t">${t}</div><div class="grow">${rewardList(bundleList(r).filter((x) => x.n !== 0))}</div><button class="btn small ${ready ? 'primary' : ''}" data-act="pclaim" data-t="${t}" ${ready ? '' : 'disabled'}>${claimed ? '已領' : ready ? '領取' : icon('lock')}</button></div>`);
       }
-      return `<div class="panel ornate pass-head"><small class="en-title">STUDY PASS · ${S.d.pass.season}</small><h3>學習通行證</h3>
+      return `<div class="panel ornate pass-head"><small class="kicker">第 ${S.d.pass.season} 季</small><h3>學習通行證</h3>
 <div class="row"><div class="pass-lv">Lv.<b>${p.tier}</b></div><div class="grow">${bar((p.points % PASS_POINTS_PER_TIER) / PASS_POINTS_PER_TIER)}<div class="dim">${p.points} 點 · 下一階 ${p.next}</div></div></div>
 <p class="dim">答對一題 +2 點、完成複習 +1、閱讀文法課 +20。每月重置，全部免費！</p></div>
 <button class="btn primary block" data-act="pall" style="margin:8px 0">一鍵領取</button>

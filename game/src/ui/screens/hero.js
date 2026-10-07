@@ -3,6 +3,8 @@ import { register, go, modal, toast, confirmBox } from '../app.js';
 import { bindActions, esc, h } from '../dom.js';
 import { icon, elemIcon } from '../../art/icons.js';
 import { heroImageURL } from '../../art/hero.js';
+import { heroArt } from '../../art/assets.js';
+import { viewArt } from '../viewer.js';
 import { HERO_MAP } from '../../core/data/heroes.js';
 import { ELEMENTS, ROLES, RARITY, STAR_MULT, maxStarFor, weakAgainst, strongAgainst } from '../../core/data/elements.js';
 import { ITEMS, GEAR_SLOTS, SLOT_INFO, GEAR_RARITY } from '../../core/data/items.js';
@@ -37,10 +39,13 @@ register({
       const st = S.d.heroes[id];
       const stats = st ? heroStats(def, st, gearById()) : heroStats(def, { lv: 1, star: RARITY[def.rarity].stars });
       const idx = list.indexOf(id);
+      // painted art is framed on the face (paintings differ in composition: a long lance can push the face off-screen)
+      const art = heroArt(def.id, st && st.skin);
+      const artStyle = art ? (() => { const H = 570, W = (H * art.w) / art.h; const [cx, cy] = art.face; return ` style="left:calc(62% - ${Math.round(cx * W)}px);top:${Math.round(112 - cy * H)}px;bottom:auto;transform:none"`; })() : '';
       el.innerHTML = `<div class="hd">
-<div class="hd-top el-${def.element}">
+<div class="hd-top el-${def.element} ${art ? 'painted' : ''}">
   <div class="hd-rays"></div>
-  <img class="hd-art" src="${heroImageURL(def, { skin: st && st.skin, aura: true })}">
+  <img class="hd-art" data-act="viewArt" src="${heroImageURL(def, { skin: st && st.skin, aura: true })}"${artStyle}>
   ${list.length > 1 ? `<button class="hd-nav l" data-act="prev" ${idx <= 0 ? 'disabled' : ''}>${icon('back')}</button><button class="hd-nav r" data-act="next" ${idx >= list.length - 1 ? 'disabled' : ''}>${icon('back', 'flip')}</button>` : ''}
   <div class="hd-head">
     <div class="hd-rar r-${def.rarity}">${def.rarity}</div>
@@ -124,7 +129,7 @@ ${lv != null ? `<div class="row" style="margin-top:6px"><span class="dim grow">�
     const bondTab = (def, st) => {
       const need = bondExpToNext(st.bond);
       return `<div class="panel"><div class="row"><div class="bond-heart">${icon('heart')}<b>${st.bond}</b></div><div class="grow">${st.bond < MAX_BOND ? `${bar(st.bondExp / need, 'pink')}<div class="dim">${st.bondExp} / ${need}　羈絆每級全屬性 +1%</div>` : '<b class="gold-text">羈絆已滿！</b>'}</div></div>
-<div class="gifts">${GIFTS.map((k) => { const g = ITEMS[k]; const liked = g.likes.includes(def.element); return `<button class="gift ${item(k) ? '' : 'none'}" data-act="gift" data-k="${k}" ${item(k) && st.bond < MAX_BOND ? '' : 'disabled'}><span style="color:${g.color}">${icon(g.icon)}</span><b>×${item(k)}</b><small>${liked ? '❤ 喜歡' : '+' + g.bond}</small></button>`; }).join('')}</div></div>
+<div class="gifts">${GIFTS.map((k) => { const g = ITEMS[k]; const liked = g.likes.includes(def.element); return `<button class="gift ${item(k) ? '' : 'none'}" data-act="gift" data-k="${k}" ${item(k) && st.bond < MAX_BOND ? '' : 'disabled'}><span style="color:${g.color}">${icon(g.icon)}</span><b>×${item(k)}</b><small class="${liked ? 'liked' : ''}">${liked ? '喜歡' : '+' + g.bond}</small></button>`; }).join('')}</div></div>
 <div class="sec-title">角色故事</div>
 ${def.stories.map((s, i) => st.bond >= STORY_AT[i] ? `<div class="panel story"><b>第 ${i + 1} 話</b><p>${esc(s)}</p></div>` : `<div class="panel story locked">${icon('lock')} 羈絆 Lv.${STORY_AT[i]} 解鎖第 ${i + 1} 話</div>`).join('')}
 <div class="sec-title">語音台詞</div>
@@ -143,7 +148,7 @@ ${def.stories.map((s, i) => st.bond >= STORY_AT[i] ? `<div class="panel story"><
       return `<div class="panel word-card ornate"><div class="row"><div class="wc-word en-title">${esc(def.name)}</div><button class="btn small" data-act="sayword">${icon('speaker')}</button></div>
 <div class="wc-pos">${esc(w.pos)}　${esc(w.zh)}</div>
 <div class="wc-ex">${esc(w.ex)}<button class="mini-say" data-act="sayex">${icon('speaker')}</button></div><div class="dim">${esc(w.exZh)}</div>
-${inBook.length ? `<div class="wc-book">📖 收錄於：${inBook.join('、')}</div>` : ''}</div>
+${inBook.length ? `<div class="wc-book">${icon('bookmark')} 收錄於：${inBook.join('、')}</div>` : ''}</div>
 <div class="panel"><b>角色檔案</b><p class="muted" style="line-height:1.7">${esc(def.profile)}</p>
 <div class="dim">定位：${ROLES[def.role].zh}——${ROLES[def.role].desc}</div></div>`;
     };
@@ -178,6 +183,7 @@ ${inBook.length ? `<div class="wc-book">📖 收錄於：${inBook.join('、')}</
     };
 
     bindActions(el, {
+      viewArt: () => { const st = S.d.heroes[id]; viewArt(HERO_MAP[id], { skin: st && st.skin, skinOwned: S.d.skins.includes(HERO_MAP[id].skin.id) }); },
       tab: (b) => { tab = lastTab = b.dataset.t; sfx('tab'); render(); },
       prev: () => { const i = list.indexOf(id); if (i > 0) { id = list[i - 1]; sfx('tap'); render(); } },
       next: () => { const i = list.indexOf(id); if (i < list.length - 1) { id = list[i + 1]; sfx('tap'); render(); } },

@@ -47,9 +47,9 @@ export function runOnboarding() {
     const bookStep = () => {
       box.innerHTML = `<div class="onb-name">${guide.zh}</div><p class="onb-zh">${S.d.profile.name}，你想用哪一本「詞之書」締結契約？<br><span class="dim">之後可以在設定中隨時更換</span></p>
 <div class="book-pick">
-<button class="book-b" data-book="c"><b>🎓 學測 4000</b><span>國高中 · Level 1–6<br>4,353 字</span></button>
-<button class="book-b" data-book="t"><b>💼 多益 3000</b><span>職場商務 · 350+～900+<br>3,000 字</span></button>
-<button class="book-b" data-book="both"><b>📚 兩本都要</b><span>混合出題<br>7,353 字</span></button>
+<button class="book-b" data-book="c"><b>學測 4000</b><span>國高中 · Level 1–6<br>4,353 字</span></button>
+<button class="book-b" data-book="t"><b>多益 3000</b><span>職場商務 · 350+～900+<br>3,000 字</span></button>
+<button class="book-b" data-book="both"><b>兩本都要</b><span>混合出題<br>7,353 字</span></button>
 </div>`;
       box.querySelectorAll('[data-book]').forEach((b) => {
         b.onclick = async () => {

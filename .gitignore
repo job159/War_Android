@@ -10,3 +10,5 @@ keystore.properties
 *.apk
 # local tool settings
 .claude/
+# python bytecode (art pipeline)
+__pycache__/

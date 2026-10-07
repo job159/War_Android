@@ -37,6 +37,13 @@ try {
   process.exit(1);
 }
 
+// key visual: three painted SSR spirits from the web build (skipped when the art isn't there)
+const KV_IDS = ['aurora', 'valor', 'eclipse'];
+const kv = [];
+for (const id of KV_IDS) {
+  try { await fs.access(path.join(WWW, 'assets', 'heroes', id, 'main.webp')); kv.push(id); } catch { /* not painted */ }
+}
+
 const qr = await QRCode.toString(SITE_URL, { type: 'svg', errorCorrectionLevel: 'M', margin: 1, color: { dark: '#080614', light: '#ffffff' } });
 
 const SITE_CSS = `${DOWNLOAD_CSS}
@@ -46,6 +53,11 @@ const SITE_CSS = `${DOWNLOAD_CSS}
 .scan p{margin:0;font-size:14px;line-height:1.6;color:var(--muted)}
 .scan code{font-size:12px;overflow-wrap:anywhere}
 @media (min-width:700px) and (hover:hover){.scan{display:flex}}
+.kv{position:relative;height:330px;margin:4px -16px 0;overflow:hidden;-webkit-mask:linear-gradient(#000 70%,transparent);mask:linear-gradient(#000 70%,transparent)}
+.kv img{position:absolute;bottom:-40px;max-width:none;filter:drop-shadow(0 0 16px rgba(246,210,122,.35))}
+.kv .c{left:50%;height:380px;transform:translateX(-50%);z-index:2}
+.kv .l{left:-6%;height:310px;filter:brightness(.7) drop-shadow(0 0 12px rgba(120,160,255,.4))}
+.kv .r{right:-6%;height:310px;filter:brightness(.7) drop-shadow(0 0 12px rgba(255,120,220,.4))}
 .tag{margin:12px 0 0;text-align:center;color:var(--muted);font-size:15px;letter-spacing:.12em}
 `;
 
@@ -83,6 +95,7 @@ ${emblemSvg({ className: 'emblem' })}
 <p class="sub">LEXICA</p>
 <p class="tag">答對英文，喚醒詞靈的力量</p>
 </header>
+${kv.length === 3 ? `<div class="kv"><img class="l" src="play/assets/heroes/${kv[1]}/main.webp" alt=""><img class="r" src="play/assets/heroes/${kv[2]}/main.webp" alt=""><img class="c" src="play/assets/heroes/${kv[0]}/main.webp" alt=""></div>` : ''}
 <div class="meta"><span class="chip" id="ver">最新版</span><span class="chip" id="size">Android APK</span><span class="chip" id="date">免費 · 開源</span></div>
 <a class="download" id="dl" href="${esc(APK_URL)}">${DOWNLOAD_ICON}<span>下載 APK<small id="dlsize">Lexica.apk</small></span></a>
 <section class="panel">
