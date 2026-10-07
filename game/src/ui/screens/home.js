@@ -1,0 +1,152 @@
+// Home lobby: the secretary hero (tap to talk - English lines with TTS), side menus, event banners,
+// the daily study card and a quick "continue adventure" button.
+import { register, go, modal, toast } from '../app.js';
+import { bindActions, esc, h } from '../dom.js';
+import { icon } from '../../art/icons.js';
+import { heroImageURL } from '../../art/hero.js';
+import { HERO_MAP } from '../../core/data/heroes.js';
+import { S, changed, studyStreak } from '../../core/state.js';
+import { dueItems, mistakeItems, counts } from '../../core/quiz/srs.js';
+import { badges, dailyState, loginCalendarState, claimLogin, LOGIN_CAL } from '../../core/missions.js';
+import { featuredHero } from '../../core/gacha.js';
+import { CHAPTERS, STAGES_PER_CHAPTER } from '../../core/data/stages.js';
+import { speak, sfx } from '../sound.js';
+import { setBgTheme } from '../../fx/bg.js';
+import { rewardList } from '../widgets.js';
+import { grantMail } from './mail.js';
+
+function nextStage() {
+  const cl = S.d.campaign.cleared;
+  for (let c = 1; c <= CHAPTERS.length; c++) {
+    for (let n = 1; n <= STAGES_PER_CHAPTER; n++) if (!cl[`${c}-${n}`]) return { c, n };
+  }
+  return { c: CHAPTERS.length, n: STAGES_PER_CHAPTER };
+}
+
+register({
+  id: 'home', tab: 'home', title: '主頁',
+  mount(el) {
+    setBgTheme('default');
+    let blinkTimer = 0, talkTimer = 0, lineIdx = 0;
+    const render = () => {
+      const d = S.d;
+      const sec = HERO_MAP[d.profile.secretary] || HERO_MAP.pebble;
+      const st = d.heroes[sec.id] || {};
+      const b = badges();
+      const due = dueItems(d.learn).length;
+      const mist = mistakeItems(d.learn).length;
+      const streak = studyStreak();
+      const cnt = counts(d.learn);
+      const ns = nextStage();
+      const ch = CHAPTERS[ns.c - 1];
+      const feat = HERO_MAP[featuredHero()];
+      const dailyLeft = dailyState().filter((x) => !x.claimed).length;
+      el.innerHTML = `<div class="home">
+<div class="home-stage">
+  <div class="home-glow el-${sec.element}"></div>
+  <div class="sec-wrap" data-act="talk">
+    <img class="sec" src="${heroImageURL(sec, { skin: st.skin })}" alt="">
+    <img class="sec blink" src="${heroImageURL(sec, { skin: st.skin, expr: 'blink' })}" alt="">
+    <img class="sec happy" src="${heroImageURL(sec, { skin: st.skin, expr: 'happy' })}" alt="">
+  </div>
+  <div class="bubble"><div class="bb-en"></div><div class="bb-zh"></div></div>
+  <div class="sec-plate"><small>${esc(sec.title)}</small><b>${esc(sec.zh)}</b><span class="en-title">${esc(sec.name)}</span></div>
+</div>
+<div class="home-left">
+  <button class="side-b" data-act="missions">${icon('scroll')}<span>任務</span>${b.missions ? '<i class="dot"></i>' : ''}</button>
+  <button class="side-b" data-act="login">${icon('calendar')}<span>簽到</span>${!d.login.claimedToday ? '<i class="dot"></i>' : ''}</button>
+  <button class="side-b" data-act="mail">${icon('mail')}<span>信箱</span>${d.mail.length ? `<i class="dot n">${d.mail.length}</i>` : ''}</button>
+  <button class="side-b" data-act="secretary">${icon('heroes')}<span>秘書</span></button>
+</div>
+<div class="home-right">
+  <button class="banner b-gacha" data-act="gacha"><img src="${heroImageURL(feat, { crop: 'bust' })}"><div><small>精選召喚</small><b>${esc(feat.zh)}</b><span>本週 UP!</span></div></button>
+  <button class="banner b-raid" data-act="raid">${icon('dragon')}<div><small>每週首領</small><b>深淵討伐</b><span>累積傷害領大獎</span></div></button>
+  <button class="banner b-pass" data-act="pass">${icon('pass')}<div><small>學習通行證</small><b>Lv.${Math.min(50, Math.floor(d.pass.points / 100))}</b><span>答題升級</span></div></button>
+</div>
+<div class="home-bottom">
+  <div class="study-card panel ornate">
+    <div class="sc-l"><div class="sc-big">${due}</div><small>到期複習</small></div>
+    <div class="sc-m"><div>🔥 連續學習 <b>${streak}</b> 天　📕 錯題 <b>${mist}</b></div><div class="dim">已掌握 ${cnt.mastered} 字 · 學習中 ${cnt.learned} 字 · 今日任務剩 ${dailyLeft}</div></div>
+    <button class="btn primary small" data-act="review">${due + mist ? '開始複習' : '去學習'}</button>
+  </div>
+  <button class="adv-btn" data-act="adventure"><div class="ab-bg bg-${ch.bg}"></div><div class="ab-t"><small>繼續冒險</small><b>第 ${ns.c} 章 ${esc(ch.zh)}</b><span>${ns.c}-${ns.n} ${ns.n === 10 ? '首領戰' : ns.n === 5 ? '菁英' : ''}</span></div><div class="ab-go">出擊 ${icon('back', 'flip')}</div></button>
+</div>
+</div>`;
+    };
+    render();
+
+    const blink = () => {
+      const img = el.querySelector('.sec.blink');
+      if (img && !el.querySelector('.sec-wrap.talking')) {
+        img.classList.add('on');
+        setTimeout(() => img.classList.remove('on'), 130);
+      }
+      blinkTimer = setTimeout(blink, 2500 + Math.random() * 3000);
+    };
+    blinkTimer = setTimeout(blink, 1800);
+
+    const talk = () => {
+      const sec = HERO_MAP[S.d.profile.secretary] || HERO_MAP.pebble;
+      const lines = sec.lines;
+      const [en, zh] = lines[lineIdx++ % lines.length];
+      const wrap = el.querySelector('.sec-wrap');
+      const bub = el.querySelector('.bubble');
+      if (!wrap || !bub) return;
+      bub.querySelector('.bb-en').textContent = en;
+      bub.querySelector('.bb-zh').textContent = zh;
+      bub.classList.remove('show');
+      void bub.offsetWidth;
+      bub.classList.add('show');
+      wrap.classList.add('talking', 'bounce');
+      setTimeout(() => wrap.classList.remove('bounce'), 400);
+      clearTimeout(talkTimer);
+      talkTimer = setTimeout(() => { wrap.classList.remove('talking'); bub.classList.remove('show'); }, 4200);
+      speak(en);
+      sfx('tap');
+    };
+
+    bindActions(el, {
+      talk,
+      missions: () => go('missions'),
+      mail: () => go('mail'),
+      login: () => showLogin(),
+      secretary: () => go('heroes', { pickSecretary: true }),
+      gacha: () => go('shop', { tab: 'summon' }),
+      raid: () => go('raid'),
+      pass: () => go('shop', { tab: 'pass' }),
+      review: () => go('study'),
+      adventure: () => go('campaign'),
+    });
+
+    // first visit of the day: show the login calendar
+    const loginTimer = S.d.login.claimedToday ? 0 : setTimeout(showLogin, 500);
+
+    return {
+      refresh: render,
+      destroy() { clearTimeout(blinkTimer); clearTimeout(talkTimer); clearTimeout(loginTimer); },
+    };
+  },
+});
+
+export function showLogin() {
+  const st = loginCalendarState();
+  const body = h(`<div class="login-cal">${LOGIN_CAL.map((r, i) => {
+    const k = Object.keys(r)[0];
+    const done = i < st.day || (i === st.day && st.claimedToday);
+    const today = i === st.day && !st.claimedToday;
+    return `<div class="lc ${done ? 'done' : ''} ${today ? 'today' : ''}"><small>第${i + 1}天</small>${rewardList([{ k, n: r[k] }])}${done ? `<i class="lc-ok">${icon('check')}</i>` : ''}</div>`;
+  }).join('')}</div>`);
+  modal({
+    title: '每日簽到', body, cls: 'wide',
+    buttons: st.claimedToday ? [{ label: '明天再來', value: null }] : [{ label: '領取今日獎勵', cls: 'primary', value: 'claim' }],
+  }).then((v) => {
+    if (v !== 'claim') return;
+    const got = claimLogin();
+    if (got) {
+      sfx('reward');
+      changed('login');
+      modal({ title: '簽到成功！', body: rewardList(got, { big: true }), buttons: [{ label: '太棒了', cls: 'primary', value: 1 }] });
+    }
+  });
+  void grantMail; void toast;
+}

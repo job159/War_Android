@@ -1,0 +1,30 @@
+{
+  "name": "lexica",
+  "version": "0.1.0",
+  "private": true,
+  "description": "詞靈幻想 LEXICA - 以英文作答為戰鬥核心的角色扮演遊戲（Android WebView 與瀏覽器）",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/job159/War_Android.git"
+  },
+  "homepage": "https://job159.github.io/War_Android/",
+  "type": "module",
+  "scripts": {
+    "data": "node scripts/build-data.mjs",
+    "dev": "node scripts/dev.mjs",
+    "build:web": "node scripts/build-web.mjs",
+    "build:apk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-apk.ps1",
+    "build": "npm run build:web && npm run build:apk",
+    "test": "node tools/test-core.mjs",
+    "sim": "node tools/sim-battle.mjs",
+    "net-test": "node tools/net-test.mjs",
+    "serve": "node scripts/serve.mjs",
+    "build:site": "node scripts/build-site.mjs",
+    "release": "node scripts/release.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "qrcode": "^1.5.4"
+  }
+}
